@@ -2,8 +2,9 @@ ENTRY(Reset_Handler)
 
 MEMORY
 {
-    FLASH   (rx) : ORIGIN = 0x08000000, LENGTH = 512k
-    RAM     (rw) : ORIGIN = 0x20000000, LENGTH = 128k
+    FLASH   (rx) : ORIGIN = 0x08000000, LENGTH = 384k /* Programmable part: read + execute */
+    NVM     (r)  : ORIGIN = 0x08060000, LENGTH = 128k /* Non volatile memory: read only */
+    RAM     (rw) : ORIGIN = 0x20000000, LENGTH = 128k /* Random access memory: read + write */
 }
 
 _estack = ORIGIN(RAM) + LENGTH(RAM);
@@ -20,10 +21,17 @@ SECTIONS
     .text :
     {
         . = ALIGN(4);
+        _stext = .;
         *(.text)
         *(.text*)
         *(.rodata)
         *(.rodata*)
+        . = ALIGN(4);
+        _etext = .;
+    } > FLASH
+
+    .idata : /* Initialized variables in Flash */
+    {
         . = ALIGN(4);
         _sidata = .;
     } > FLASH
@@ -48,4 +56,13 @@ SECTIONS
         . = ALIGN(4);
         _ebss = .;
     } > RAM
+
+    .key_storage :
+    {
+        . = ALIGN(4);
+        _skeys = .;
+        KEEP(*(.key_storage))
+        . = ALIGN(4);
+        _ekeys = .;
+    } > NVM
 }

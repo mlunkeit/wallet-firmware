@@ -5,9 +5,7 @@
 #ifndef WALLET_FIRMWARE_GPIO_H
 #define WALLET_FIRMWARE_GPIO_H
 
-#include <cstdint>
 #include <expected>
-#include <variant>
 
 #include <stm32f4xx.h>
 
@@ -59,7 +57,13 @@ namespace wallet::driver::gpio
     class Device
     {
     public:
-        static std::expected<Device, DriverError> open(Mode mode, Type type, Speed speed, PullType pullType, Pin pin);
+        Device(const Device&) = delete;
+        Device& operator=(const Device&) = delete;
+
+        Device(Device&&) = default;
+        Device& operator=(Device&&) = default;
+
+        [[nodiscard]] static std::expected<Device, DriverError> open(Mode mode, Type type, Speed speed, PullType pullType, Pin pin);
         ~Device();
 
         [[nodiscard]] std::expected<void, DriverError> set(bool out) const;
@@ -70,6 +74,8 @@ namespace wallet::driver::gpio
 
         GPIO_TypeDef *gpio;
         std::uint8_t pin;
+        bool allowOutput = false;
+        bool allowInput = false;
     };
 }
 
