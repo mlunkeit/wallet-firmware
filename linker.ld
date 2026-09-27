@@ -18,6 +18,18 @@ SECTIONS
         . = ALIGN(4);
     } > FLASH
 
+    .init :
+    {
+        . = ALIGN(4);
+        KEEP(*(.init))
+    } > FLASH
+
+    .fini :
+    {
+        . = ALIGN(4);
+        KEEP(*(.fini))
+    } > FLASH
+
     .text :
     {
         . = ALIGN(4);
@@ -30,13 +42,27 @@ SECTIONS
         _etext = .;
     } > FLASH
 
-    .idata : /* Initialized variables in Flash */
+    .init_array :
     {
         . = ALIGN(4);
-        _sidata = .;
+        PROVIDE_HIDDEN (__init_array_start = .);
+        KEEP(*(SORT(.init_array.*)))
+        KEEP(*(.init_array))
+        PROVIDE_HIDDEN (__init_array_end = .);
+        . = ALIGN(4);
     } > FLASH
 
-    .data : AT(_sidata)
+    .fini_array :
+    {
+        . = ALIGN(4);
+        PROVIDE_HIDDEN (__fini_array_start = .);
+        KEEP(*(SORT(.fini_array.*)))
+        KEEP(*(.fini_array))
+        PROVIDE_HIDDEN (__fini_array_end = .);
+        . = ALIGN(4);
+    } > FLASH
+
+    .data :
     {
         . = ALIGN(4);
         _sdata = .;
@@ -44,7 +70,9 @@ SECTIONS
         *(.data*)
         . = ALIGN(4);
         _edata = .;
-    } > RAM
+    } > RAM AT > FLASH
+
+    _sidata = LOADADDR(.data);
 
     .bss :
     {

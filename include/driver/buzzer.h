@@ -20,7 +20,7 @@ namespace wallet::driver::buzzer
 
         [[nodiscard]] static std::expected<Passive, DriverError> open(gpio::Pin pin);
 
-        [[nodiscard]] std::expected<void, DriverError> play(std::uint32_t frequency, std::uint32_t milliseconds) const;
+        [[nodiscard]] std::expected<void, DriverError> play(std::uint32_t frequency, std::chrono::milliseconds ms) const;
 
     private:
         explicit Passive(gpio::Device dev);

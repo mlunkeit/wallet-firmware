@@ -54,6 +54,8 @@ namespace wallet::driver::gpio
         std::uint8_t num;
     };
 
+    [[nodiscard]] std::expected<void, DriverError> require(Port port);
+
     class Device
     {
     public:
