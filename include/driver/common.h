@@ -14,7 +14,9 @@ namespace wallet::driver
     {
         IllegalArguments = 0x1,
         IllegalOperation = 0x2,
-        IllegalState = 0x3
+        IllegalState = 0x3,
+        IntegerOverflow = 0x4,
+        ResourceOccupied = 0x5,
     };
 
     [[gnu::always_inline]] inline void sleep(const std::chrono::nanoseconds ns)

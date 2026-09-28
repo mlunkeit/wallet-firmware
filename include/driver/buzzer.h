@@ -6,25 +6,39 @@
 #define WALLET_FIRMWARE_BUZZER_H
 
 #include "driver/gpio.h"
+#include "driver/timer.h"
 
 namespace wallet::driver::buzzer
 {
     class Passive
     {
     public:
+        ~Passive();
+
         Passive(const Passive&) = delete;
         Passive& operator=(const Passive&) = delete;
 
-        Passive(Passive&&) = default;
-        Passive& operator=(Passive&&) = default;
+        explicit Passive(Passive&&) noexcept;
+        Passive& operator=(Passive&&) = delete;
 
-        [[nodiscard]] static std::expected<Passive, DriverError> open(gpio::Pin pin);
+        [[nodiscard]] static std::expected<Passive, DriverError> open(const timer::PhysicalTimer& timer, gpio::Pin pin);
 
-        [[nodiscard]] std::expected<void, DriverError> play(std::uint32_t frequency, std::chrono::milliseconds ms) const;
+        // set the frequency of the note to be played
+        [[nodiscard]] std::expected<void, DriverError> frequency(std::uint32_t frequency) const;
+
+        // start playing the sound with the set frequency
+        [[nodiscard]] std::expected<void, DriverError> start() const;
+
+        // stop playing the current sound
+        [[nodiscard]] std::expected<void, DriverError> stop() const;
 
     private:
-        explicit Passive(gpio::Device dev);
+        explicit Passive(const timer::PhysicalTimer& timer, gpio::Device dev);
+        const timer::PhysicalTimer& timer;
         gpio::Device dev;
+        bool state;
+
+        void toggle();
     };
 }
 
