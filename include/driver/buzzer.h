@@ -37,7 +37,7 @@ namespace wallet::driver::buzzer
         const timer::PhysicalTimer& timer;
         gpio::Device dev;
         bool state;
-
+        timer::CallbackFunc callback;
         void toggle();
     };
 }

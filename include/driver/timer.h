@@ -12,7 +12,11 @@
 
 namespace wallet::driver::timer
 {
-    using CallbackFunc = void (*)();
+    struct CallbackFunc
+    {
+        void (*func)(void*);
+        void *ctx;
+    };
 
     enum Hardware : std::uint8_t
     {
@@ -36,18 +40,18 @@ namespace wallet::driver::timer
         PhysicalTimer(PhysicalTimer&&) = default;
         PhysicalTimer& operator=(PhysicalTimer&&) = default;
 
-        std::expected<void, DriverError> handle(void (*func) ()) const;
-        std::expected<void, DriverError> interval(std::chrono::nanoseconds duration) const;
-        std::expected<void, DriverError> repeat(bool repeat) const;
-        std::expected<void, DriverError> start() const;
-        std::expected<void, DriverError> stop() const;
+        [[nodiscard]] std::expected<void, DriverError> handle(const CallbackFunc& func) const;
+        [[nodiscard]] std::expected<void, DriverError> interval(std::chrono::nanoseconds duration) const;
+        [[nodiscard]] std::expected<void, DriverError> repeat(bool repeat) const;
+        [[nodiscard]] std::expected<void, DriverError> start() const;
+        [[nodiscard]] std::expected<void, DriverError> stop() const;
 
     private:
-        explicit PhysicalTimer(TIM_TypeDef *timer, std::uint8_t bits, volatile CallbackFunc *handler);
+        explicit PhysicalTimer(TIM_TypeDef *timer, std::uint8_t bits, CallbackFunc *handler);
         TIM_TypeDef *timer;
         std::uint8_t bits;
 
-        void (*volatile*handler)();
+        CallbackFunc *handler;
     };
 }
 

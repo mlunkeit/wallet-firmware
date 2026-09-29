@@ -4,41 +4,31 @@
 
 using namespace wallet::driver;
 
-static buzzer::Passive *instance;
-
-buzzer::Passive::Passive(Passive&& old) noexcept : timer(old.timer), dev(std::move(old.dev)), state(old.state)
+buzzer::Passive::Passive(const timer::PhysicalTimer& timer, gpio::Device dev)
+    :   timer(timer),
+        dev(std::move(dev)),
+        state(false),
+        callback {.func = [](void *ctx) -> void { static_cast<Passive*>(ctx)->toggle(); }, .ctx = this}
 {
-    if (instance == &old)
-        instance = this;
+    auto _ = this->timer.handle(this->callback);
 }
 
-buzzer::Passive::Passive(const timer::PhysicalTimer& timer, gpio::Device dev) : timer(timer), dev(std::move(dev)), state(false)
+buzzer::Passive::Passive(Passive&& old) noexcept
+    :   timer(old.timer),
+        dev(std::move(old.dev)),
+        state(old.state),
+        callback { .func = old.callback.func, .ctx = this }
 {
-    instance = this;
-
-    this->timer.handle([]() -> void
-    {
-        if (instance != nullptr)
-        {
-            instance->toggle();
-        }
-    });
+    auto _ = this->timer.handle(this->callback);
 }
 
-buzzer::Passive::~Passive()
-{
-    if (instance == this)
-        instance = nullptr;
-}
+buzzer::Passive::~Passive() = default;
 
 std::expected<buzzer::Passive, DriverError> buzzer::Passive::open(const timer::PhysicalTimer& timer, const gpio::Pin pin)
 {
     return gpio::Device::open(gpio::Mode::Output, gpio::Type::PushPull, gpio::Speed::Low, gpio::PullType::PullDown, pin)
         .and_then([&timer](gpio::Device device) -> std::expected<Passive, DriverError>
         {
-            if (instance != nullptr)
-                return std::unexpected(DriverError::ResourceOccupied);
-
             return std::expected<Passive, DriverError>(Passive(timer, std::move(device)));
         });
 }

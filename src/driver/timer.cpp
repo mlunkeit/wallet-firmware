@@ -4,12 +4,12 @@
 
 using namespace wallet::driver;
 
-static volatile timer::CallbackFunc tim2_callback;
-static volatile timer::CallbackFunc tim3_callback;
-static volatile timer::CallbackFunc tim4_callback;
-static volatile timer::CallbackFunc tim5_callback;
+static timer::CallbackFunc tim2_callback;
+static timer::CallbackFunc tim3_callback;
+static timer::CallbackFunc tim4_callback;
+static timer::CallbackFunc tim5_callback;
 
-static void handle_update_interrupt(TIM_TypeDef *timer, const timer::CallbackFunc callback)
+static void handle_update_interrupt(TIM_TypeDef *timer, const timer::CallbackFunc *callback)
 {
     // update interrupt flag has to be set in status register
     if (!(timer->SR & TIM_SR_UIF))
@@ -18,29 +18,14 @@ static void handle_update_interrupt(TIM_TypeDef *timer, const timer::CallbackFun
     // unset update interrupt flag
     timer->SR &= ~TIM_SR_UIF;
 
-    if (callback)
-        callback();
+    if (callback->func != nullptr)
+        callback->func(callback->ctx);
 }
 
-extern "C" void TIM2_IRQHandler()
-{
-    handle_update_interrupt(TIM2, tim2_callback);
-}
-
-extern "C" void TIM3_IRQHandler()
-{
-    handle_update_interrupt(TIM3, tim3_callback);
-}
-
-extern "C" void TIM4_IRQHandler()
-{
-    handle_update_interrupt(TIM4, tim4_callback);
-}
-
-extern "C" void TIM5_IRQHandler()
-{
-    handle_update_interrupt(TIM5, tim5_callback);
-}
+extern "C" void TIM2_IRQHandler() {handle_update_interrupt(TIM2, &tim2_callback);}
+extern "C" void TIM3_IRQHandler() {handle_update_interrupt(TIM3, &tim3_callback);}
+extern "C" void TIM4_IRQHandler() {handle_update_interrupt(TIM4, &tim4_callback);}
+extern "C" void TIM5_IRQHandler() {handle_update_interrupt(TIM5, &tim5_callback);}
 
 std::expected<void, DriverError> timer::require(const Hardware hardware)
 {
@@ -71,7 +56,7 @@ std::expected<void, DriverError> timer::require(const Hardware hardware)
 std::expected<timer::PhysicalTimer, DriverError> timer::PhysicalTimer::open(const Hardware hardware)
 {
     TIM_TypeDef *timer;
-    volatile CallbackFunc *callback;
+    CallbackFunc *callback;
     std::uint8_t bits;
 
     switch (hardware)
@@ -100,7 +85,7 @@ std::expected<timer::PhysicalTimer, DriverError> timer::PhysicalTimer::open(cons
             return std::unexpected(DriverError::IllegalArguments);
     }
 
-    if (*callback != nullptr)
+    if (callback->func != nullptr)
     {
         return std::unexpected(DriverError::ResourceOccupied);
     }
@@ -108,7 +93,7 @@ std::expected<timer::PhysicalTimer, DriverError> timer::PhysicalTimer::open(cons
     return PhysicalTimer(timer, bits, callback);
 }
 
-timer::PhysicalTimer::PhysicalTimer(TIM_TypeDef *timer, const std::uint8_t bits, volatile CallbackFunc *handler) : bits(bits), handler(handler)
+timer::PhysicalTimer::PhysicalTimer(TIM_TypeDef *timer, const std::uint8_t bits, CallbackFunc *handler) : bits(bits), handler(handler)
 {
     this->timer = timer;
     timer->CR1 &= ~TIM_CR1_DIR;
@@ -119,18 +104,20 @@ timer::PhysicalTimer::~PhysicalTimer()
 {
     if (handler != nullptr)
     {
-        *handler = nullptr;
+        handler->func = nullptr;
+        handler->ctx = nullptr;
     }
 }
 
-std::expected<void, DriverError> timer::PhysicalTimer::handle(const CallbackFunc func) const
+std::expected<void, DriverError> timer::PhysicalTimer::handle(const CallbackFunc& func) const
 {
     if (handler == nullptr)
     {
         return std::unexpected(DriverError::IllegalState);
     }
 
-    *handler = func;
+    handler->func = func.func;
+    handler->ctx = func.ctx;
     return {};
 }
 
