@@ -11,7 +11,9 @@ namespace wallet::service
 {
     enum class ServiceError : std::uint8_t
     {
-        DriverError = 0x1
+        DriverError = 0x1,
+        QueueFull = 0x2,
+        IllegalState = 0x3,
     };
 }
 
