@@ -4,12 +4,12 @@
 
 using namespace wallet::driver;
 
-static timer::CallbackFunc tim2_callback;
-static timer::CallbackFunc tim3_callback;
-static timer::CallbackFunc tim4_callback;
-static timer::CallbackFunc tim5_callback;
+static volatile timer::CallbackFunc tim2_callback;
+static volatile timer::CallbackFunc tim3_callback;
+static volatile timer::CallbackFunc tim4_callback;
+static volatile timer::CallbackFunc tim5_callback;
 
-static void handle_update_interrupt(TIM_TypeDef *timer, const timer::CallbackFunc *callback)
+static void handle_update_interrupt(TIM_TypeDef *timer, const volatile timer::CallbackFunc *callback)
 {
     // update interrupt flag has to be set in status register
     if (!(timer->SR & TIM_SR_UIF))
@@ -56,7 +56,7 @@ std::expected<void, DriverError> timer::require(const Hardware hardware)
 std::expected<timer::PhysicalTimer, DriverError> timer::PhysicalTimer::open(const Hardware hardware)
 {
     TIM_TypeDef *timer;
-    CallbackFunc *callback;
+    volatile CallbackFunc *callback;
     std::uint8_t bits;
 
     switch (hardware)
@@ -93,7 +93,7 @@ std::expected<timer::PhysicalTimer, DriverError> timer::PhysicalTimer::open(cons
     return PhysicalTimer(timer, bits, callback);
 }
 
-timer::PhysicalTimer::PhysicalTimer(TIM_TypeDef *timer, const std::uint8_t bits, CallbackFunc *handler) : bits(bits), handler(handler)
+timer::PhysicalTimer::PhysicalTimer(TIM_TypeDef *timer, const std::uint8_t bits, volatile CallbackFunc *handler) : bits(bits), handler(handler)
 {
     this->timer = timer;
     timer->CR1 &= ~TIM_CR1_DIR;
@@ -102,11 +102,11 @@ timer::PhysicalTimer::PhysicalTimer(TIM_TypeDef *timer, const std::uint8_t bits,
 
 timer::PhysicalTimer::~PhysicalTimer()
 {
-    if (handler != nullptr)
+    /*if (handler != nullptr)
     {
         handler->func = nullptr;
         handler->ctx = nullptr;
-    }
+    }*/
 }
 
 std::expected<void, DriverError> timer::PhysicalTimer::handle(const CallbackFunc& func) const
@@ -123,7 +123,15 @@ std::expected<void, DriverError> timer::PhysicalTimer::handle(const CallbackFunc
 
 std::expected<void, DriverError> timer::PhysicalTimer::interval(const std::chrono::nanoseconds duration) const
 {
-    constexpr std::uint64_t timer_freq = CPU_CLOCK_SPEED >> 1;
+    const uint32_t ppre1 = (RCC->CFGR & RCC_CFGR_PPRE1_Msk) >> RCC_CFGR_PPRE1_Pos;
+
+    std::uint8_t divisor = 1;
+    if (ppre1 & 0x4)
+    {
+        divisor = 1 << (ppre1 & 0x3);
+    }
+
+    const std::uint64_t timer_freq = CPU_CLOCK_SPEED / divisor;
     const std::uint64_t ticks = duration.count() * timer_freq / 1'000'000'000;
 
     std::uint64_t arr = ticks; // 10 ns per cycle at 100MHz

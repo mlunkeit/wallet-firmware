@@ -47,11 +47,11 @@ namespace wallet::driver::timer
         [[nodiscard]] std::expected<void, DriverError> stop() const;
 
     private:
-        explicit PhysicalTimer(TIM_TypeDef *timer, std::uint8_t bits, CallbackFunc *handler);
+        explicit PhysicalTimer(TIM_TypeDef *timer, std::uint8_t bits, volatile CallbackFunc *handler);
         TIM_TypeDef *timer;
         std::uint8_t bits;
 
-        CallbackFunc *handler;
+        volatile CallbackFunc *handler;
     };
 }
 
