@@ -2,6 +2,7 @@
 #include <stm32f4xx.h>
 
 #include "driver/buzzer.h"
+#include "driver/i2c.h"
 #include "service/scheduler.h"
 
 using namespace wallet;
@@ -33,7 +34,7 @@ void enable_120mhz()
     RCC->CFGR |= RCC_CFGR_HPRE_DIV1 | RCC_CFGR_PPRE1_DIV4 | RCC_CFGR_PPRE2_DIV2;
 
     constexpr uint32_t pll_m = 16;
-    constexpr uint32_t pll_n = 200;
+    constexpr uint32_t pll_n = 240;
     constexpr uint32_t pll_p = 0;
     constexpr uint32_t pll_q = 4;
 
@@ -68,6 +69,9 @@ int main()
     if (const auto exp = driver::timer::require(driver::timer::Tim2); !exp.has_value()) return 1;
 
     if (const auto exp = driver::gpio::require(driver::gpio::Port::A); !exp.has_value()) return 1;
+    if (const auto exp = driver::gpio::require(driver::gpio::Port::B); !exp.has_value()) return 1;
+
+    if (const auto exp = driver::i2c::require(driver::i2c::Port::i2c1); !exp.has_value()) return 1;
 
     auto buzzerTimer = driver::timer::PhysicalTimer::open(driver::timer::Tim2);
     auto masterTimer = driver::timer::PhysicalTimer::open(driver::timer::Tim5);
