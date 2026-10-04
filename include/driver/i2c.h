@@ -3,34 +3,31 @@
 
 #include "driver/common.h"
 #include "driver/gpio.h"
+#include "driver/timer.h"
 
 namespace wallet::driver::i2c
 {
-    enum class Port : std::uint8_t
-    {
-        i2c1 = 1,
-        i2c2 = 2
-    };
-
-    std::expected<void, DriverError> require(Port port);
-
     class Device
     {
     public:
         Device(Device&) = delete;
         Device& operator=(Device&) = delete;
 
-        Device(Device&&) = default;
-        Device& operator=(Device&&) = default;
+        explicit Device(Device&&) noexcept;
 
-        static std::expected<Device, DriverError> open(Port port, std::uint8_t address);
+        static std::expected<Device, DriverError> open(timer::PhysicalTimer timer, gpio::Pin scl, gpio::Pin sda, std::uint8_t address);
 
-        std::expected<void, DriverError> transmit(const std::uint8_t *data, std::size_t size);
-        //std::expected<std::size_t, DriverError> receive(std::uint8_t *data, std::size_t size);
+        [[nodiscard]] std::expected<void, DriverError> transmit(const std::uint8_t *data, std::size_t size) const;
 
     private:
-        Device(I2C_TypeDef *i2c, std::uint8_t address);
-        I2C_TypeDef *i2c;
+        Device(timer::PhysicalTimer timer, gpio::Device scl, gpio::Device sda, std::uint8_t address);
+        [[nodiscard]] std::expected<void, DriverError> start() const;
+        [[nodiscard]] std::expected<void, DriverError> write(std::uint8_t byte) const;
+        [[nodiscard]] std::expected<void, DriverError> stop() const;
+
+        timer::PhysicalTimer timer;
+        gpio::Device scl;
+        gpio::Device sda;
         std::uint8_t address;
     };
 }

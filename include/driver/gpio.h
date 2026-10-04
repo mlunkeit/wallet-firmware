@@ -76,8 +76,6 @@ namespace wallet::driver::gpio
 
         GPIO_TypeDef *gpio;
         std::uint8_t pin;
-        bool allowOutput = false;
-        bool allowInput = false;
     };
 }
 

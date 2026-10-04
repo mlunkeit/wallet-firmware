@@ -74,11 +74,6 @@ gpio::Device::Device(
     const std::uint8_t pin,
     GPIO_TypeDef *gpio) : gpio(gpio), pin(pin)
 {
-    if (mode == 0b00)
-        allowInput = true;
-    if (mode == 0b01)
-        allowOutput = true;
-
     set_register_32(&gpio->MODER, mode, pin, 2);
     set_register_32(&gpio->OTYPER, type, pin, 1);
     set_register_32(&gpio->OSPEEDR, speed, pin, 2);
@@ -92,9 +87,6 @@ std::expected<void, DriverError> gpio::Device::set(const bool out) const
     if (!this->gpio)
         return std::unexpected(DriverError::IllegalState);
 
-    //if (!this->allowOutput)
-    //    return std::unexpected(DriverError::IllegalOperation);
-
     this->gpio->BSRR = 1u << (this->pin + (out ? 0 : 16));
     return {};
 }
@@ -103,9 +95,6 @@ std::expected<bool, DriverError> gpio::Device::get() const
 {
     if (!this->gpio)
         return std::unexpected(DriverError::IllegalState);
-
-    //if (!this->allowInput)
-    //    return std::unexpected(DriverError::IllegalOperation);
 
     return get_register_32(&this->gpio->IDR, this->pin, 1) ? true : false;
 }

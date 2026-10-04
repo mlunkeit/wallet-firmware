@@ -175,4 +175,3 @@ std::expected<void, DriverError> timer::PhysicalTimer::stop() const
     this->timer->CR1 &= ~TIM_CR1_CEN;
     return {};
 }
-

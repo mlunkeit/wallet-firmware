@@ -17,6 +17,7 @@ namespace wallet::driver
         IllegalState = 0x3,
         IntegerOverflow = 0x4,
         ResourceOccupied = 0x5,
+        NotAcknowledged = 0x6
     };
 
     [[gnu::always_inline]] inline void sleep(const std::chrono::nanoseconds ns)
