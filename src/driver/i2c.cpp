@@ -3,7 +3,6 @@
 #include "driver/timer.h"
 
 #include <chrono>
-#include <stm32f4xx.h>
 
 using namespace wallet::driver;
 
@@ -35,13 +34,6 @@ i2c::Device::Device(timer::PhysicalTimer timer, gpio::Device scl, gpio::Device s
     _ = timer.repeat(false);
 }
 
-i2c::Device::Device(Device&& old) noexcept
-    :   timer(std::move(old.timer)),
-        scl(std::move(old.scl)),
-        sda(std::move(old.sda)),
-        address(old.address)
-{}
-
 std::expected<i2c::Device, DriverError> i2c::Device::open(timer::PhysicalTimer timer, const gpio::Pin scl, const gpio::Pin sda, const std::uint8_t address)
 {
     auto sclGpio = gpio::Device::open(gpio::Mode::Output, gpio::Type::OpenDrain, gpio::Speed::Low, gpio::PullType::PullUp, scl);
@@ -56,31 +48,77 @@ std::expected<i2c::Device, DriverError> i2c::Device::open(timer::PhysicalTimer t
     return std::expected<Device, DriverError>(Device(std::move(timer), std::move(*sclGpio), std::move(*sdaGpio), address));
 }
 
-std::expected<void, DriverError> i2c::Device::transmit(const std::uint8_t *data, const std::size_t size) const
+std::expected<i2c::Stream, DriverError> i2c::Device::open_stream()
 {
-    if (auto err = this->start(); !err.has_value())
-        return err;
+    Stream stream(this->timer, this->scl, this->sda, this->address);
 
-    if (auto err = this->write(this->address << 1); !err.has_value())
+    if (auto err = stream.start(); !err.has_value())
     {
-        auto _ = this->stop();
-        return err;
+        return std::unexpected(err.error());
     }
 
+    return std::expected<Stream, DriverError>(std::move(stream));
+}
+
+i2c::Stream::Stream(const timer::PhysicalTimer& timer, gpio::Device& scl, gpio::Device& sda, const std::uint8_t address)
+    : timer(timer), scl(scl), sda(sda), address(address), open(false)
+{}
+
+i2c::Stream::Stream(Stream&& old) noexcept
+    :   timer(old.timer),
+        scl(old.scl),
+        sda(old.sda),
+        address(old.address),
+        open(old.open)
+{
+    old.open = false;
+}
+
+i2c::Stream& i2c::Stream::operator=(Stream&& old) noexcept
+{
+    if (this != &old)
+    {
+        if (this->open)
+        {
+            auto _ = this->stop();
+        }
+
+        this->open = old.open;
+        old.open = false;
+    }
+
+    return *this;
+}
+
+i2c::Stream::~Stream()
+{
+    if (this->open)
+    {
+        auto _ = this->stop();
+    }
+}
+
+std::expected<void, DriverError> i2c::Stream::write_bytes(const std::uint8_t *data, const std::size_t size)
+{
     for (std::size_t i = 0; i < size; i++)
     {
-        if (auto err = this->write(data[i]); !err.has_value())
+        if (auto err = this->write_byte(data[i]); !err.has_value())
         {
             auto _ = this->stop();
             return err;
         }
     }
 
-    return this->stop();
+    return {};
 }
 
-std::expected<void, DriverError> i2c::Device::start() const
+std::expected<void, DriverError> i2c::Stream::start()
 {
+    if (open)
+    {
+        return std::unexpected(DriverError::IllegalState);
+    }
+
     if (auto err = this->sda.set(true); !err.has_value()) return err;
     if (auto err = this->scl.set(true); !err.has_value()) return err;
     delay(this->timer);
@@ -98,11 +136,24 @@ std::expected<void, DriverError> i2c::Device::start() const
 
     delay(this->timer);
 
+    this->open = true;
+
+    if (auto err = this->write_byte(this->address << 1); !err.has_value())
+    {
+        auto _ = this->stop();
+        return err;
+    }
+
     return {};
 }
 
-std::expected<void, DriverError> i2c::Device::write(std::uint8_t byte) const
+std::expected<void, DriverError> i2c::Stream::write_byte(std::uint8_t byte)
 {
+    if (!open)
+    {
+        return std::unexpected(DriverError::IllegalState);
+    }
+
     for (std::uint8_t i = 0; i < 8; i++)
     {
         if (auto err = this->sda.set(byte & 0x80 ? true : false); !err.has_value())
@@ -148,7 +199,7 @@ std::expected<void, DriverError> i2c::Device::write(std::uint8_t byte) const
     return {};
 }
 
-std::expected<void, DriverError> i2c::Device::stop() const
+std::expected<void, DriverError> i2c::Stream::stop()
 {
     // drain SDA to LOW because I2C requires a rising edge on SDA while SCL is HIGH
     if (auto err = this->sda.set(false); !err.has_value())
@@ -165,6 +216,8 @@ std::expected<void, DriverError> i2c::Device::stop() const
     // set SDA to HIGH while SCL is already HIGH
     if (auto err = this->sda.set(true); !err.has_value())
         return err;
+
+    this->open = false;
 
     return {};
 }

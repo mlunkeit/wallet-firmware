@@ -2,6 +2,7 @@
 #include <stm32f4xx.h>
 
 #include "driver/buzzer.h"
+#include "driver/display.h"
 #include "driver/i2c.h"
 #include "service/scheduler.h"
 
@@ -84,29 +85,10 @@ int main()
         driver::gpio::Pin { .port = driver::gpio::Port::B, .num = 6 },
         0x3C);
 
-    std::uint8_t oled_full_init[] = {
-        0x00, // Co = 0, D/C# = 0 -> Command Stream
+    for (int i = 0; i < 500'000; ++i) asm volatile ("nop");
 
-        0xAE,       // 1. Display OFF
-        0xD5, 0x80, // 2. Set Display Clock Divide Ratio / Oscillator Frequency (Default: 0x80)
-        0xA8, 0x3F, // 3. Set Multiplex Ratio (1/64 Duty für 128x64)
-        0xD3, 0x00, // 4. Set Display Offset (0x00)
-        0x40,       // 5. Set Display Start Line (0x00)
-
-        0x8D, 0x14, // 6. Charge Pump ENABLE
-
-        0x20, 0x00, // 7. Set Memory Addressing Mode -> Horizontal Addressing Mode
-        0xA1,       // 8. Set Segment Re-map
-        0xC8,       // 9. Set COM Output Scan Direction
-        0xDA, 0x12, // 10. Set COM Pins Hardware Configuration
-        0x81, 0xCF, // 11. Set Contrast Control
-        0xD9, 0xF1, // 12. Set Pre-Charge Period
-        0xDB, 0x40, // 13. Set VCOMH Deselect Level
-
-        0xA5,       // 14. Entire Display ON (Schaltet testweise ALLE Pixel an, ignoriert RAM)
-        0xAF        // 15. Display Power ON
-    };
-    if (const auto exp = i2cDev->transmit(oled_full_init, sizeof(oled_full_init)); !exp.has_value()) return 1;
+    driver::display::SSD1306 ssd1306(std::move(i2cDev.value()));
+    if (const auto exp = ssd1306.initialize(); !exp.has_value()) return 1;
 
     auto bzres = driver::buzzer::Passive::open(buzzerTimer.value(), driver::gpio::Pin { .port = driver::gpio::Port::A, .num = 3 });
     if (!bzres.has_value()) return 1;
