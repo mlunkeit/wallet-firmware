@@ -8,6 +8,18 @@
 #include <cstdint>
 #include <chrono>
 
+#define TRY_VOID(stmt) \
+    if (auto _expected = (stmt); !_expected.has_value()) \
+    { return std::unexpected(_expected.error()); }
+
+#define TRY_VAL(stmt) \
+    ({ \
+        auto _expected = (stmt); \
+        if (!_expected.has_value()) \
+        { return std::unexpected(_expected.error()); }; \
+        std::move(_expected.value()); \
+    })
+
 namespace wallet::driver
 {
     enum class DriverError : std::uint8_t

@@ -11,7 +11,7 @@ namespace wallet::driver::display
         explicit SSD1306(i2c::Device i2cDev);
 
         std::expected<void, DriverError> initialize();
-        std::expected<void, DriverError> write(uint16_t address, uint8_t data, size_t size);
+        std::expected<void, DriverError> write_page(std::uint8_t page, const std::uint8_t data[128]);
 
     private:
         i2c::Device i2cDev;

@@ -1,5 +1,6 @@
 #include <utility>
 #include <stm32f4xx.h>
+#include <string.h>
 
 #include "driver/buzzer.h"
 #include "driver/display.h"
@@ -89,6 +90,13 @@ int main()
 
     driver::display::SSD1306 ssd1306(std::move(i2cDev.value()));
     if (const auto exp = ssd1306.initialize(); !exp.has_value()) return 1;
+
+    uint8_t page_test[128];
+    memset(page_test, 0xAA, 128);
+    for (int i = 0; i < 8; ++i)
+    {
+        if (const auto exp = ssd1306.write_page(i, page_test); !exp.has_value()) return 1;
+    }
 
     auto bzres = driver::buzzer::Passive::open(buzzerTimer.value(), driver::gpio::Pin { .port = driver::gpio::Port::A, .num = 3 });
     if (!bzres.has_value()) return 1;
