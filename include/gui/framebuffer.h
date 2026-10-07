@@ -6,6 +6,10 @@
 #include "driver/display.h"
 #include "gui/common.h"
 
+#define FRAMEBUFFER_ROWS        64
+#define FRAMEBUFFER_COLUMNS     128
+#define FRAMEBUFFER_SEGMENTS    8
+
 namespace wallet::gui
 {
     class Framebuffer
@@ -18,7 +22,8 @@ namespace wallet::gui
         std::expected<void, GUIError> flush();
 
     private:
-        std::array<std::uint8_t, 1024> buffer;
+        driver::display::SSD1306 display;
+        std::array<std::uint8_t, 1024> buffer {};
         std::uint8_t dirty;
     };
 }

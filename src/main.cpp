@@ -1,10 +1,11 @@
 #include <utility>
 #include <stm32f4xx.h>
-#include <string.h>
 
 #include "driver/buzzer.h"
 #include "driver/display.h"
 #include "driver/i2c.h"
+#include "gui/framebuffer.h"
+#include "gui/components/font.h"
 #include "service/scheduler.h"
 
 using namespace wallet;
@@ -91,12 +92,10 @@ int main()
     driver::display::SSD1306 ssd1306(std::move(i2cDev.value()));
     if (const auto exp = ssd1306.initialize(); !exp.has_value()) return 1;
 
-    uint8_t page_test[128];
-    memset(page_test, 0xAA, 128);
-    for (int i = 0; i < 8; ++i)
-    {
-        if (const auto exp = ssd1306.write_page(i, page_test); !exp.has_value()) return 1;
-    }
+    gui::Framebuffer fb(std::move(ssd1306));
+    gui::components::Font font = gui::components::Font::get_default();
+    font.draw_string(fb, "Hello", 0, 0, 2);
+    if (const auto exp = fb.flush(); !exp.has_value()) return 1;
 
     auto bzres = driver::buzzer::Passive::open(buzzerTimer.value(), driver::gpio::Pin { .port = driver::gpio::Port::A, .num = 3 });
     if (!bzres.has_value()) return 1;
@@ -111,7 +110,7 @@ int main()
         .ctx = &buzzer
     };
 
-    auto _ = scheduler.set_timeout(std::chrono::milliseconds(1000), stopFunc);
+    auto _ = scheduler.set_timeout(std::chrono::milliseconds(200), stopFunc);
 
     if (const auto exp = buzzer.frequency(3000); !exp.has_value()) return 1;
     if (const auto exp = buzzer.start(); !exp.has_value()) return 1;
